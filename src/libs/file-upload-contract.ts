@@ -1,43 +1,73 @@
 import { appendFile } from "node:fs/promises";
 import { Crane } from "./crane";
+import { BunFile } from "bun";
+import { rm } from "node:fs/promises";
 
 export interface FileMetadata {
   size: number;
 }
 
-export interface Contract {
+export class Contract {
+  // ==========================================
+  // PROPERTIES
+  // ==========================================
+
   id: string;
   size: number;
   totalChunk: number;
   receivedChunks: Set<number>;
+
+  // ==========================================
+  // CONSTRUCTOR
+  // ==========================================
+
+  constructor(id: string, size: number, totalChunk: number) {
+    this.id = id;
+    this.size = size;
+    this.totalChunk = totalChunk;
+    this.receivedChunks = new Set<number>();
+  }
+
+  // ==========================================
+  // GETTERS
+  // ==========================================
+
+  get file(): BunFile {
+    return Bun.file(`.tmp/uploads/${this.id}/merged.bin`);
+  }
+
+  // ==========================================
+  // METHODS
+  // ==========================================
+
+  async deleteTempFile(): Promise<void> {
+    await rm(`.tmp/uploads/${this.id}`, { recursive: true, force: true });
+  }
 }
 
-const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB
-
 class FileUploadContractManager {
+  // ==========================================
+  // PROPERTIES
+  // ==========================================
+
   contracts = new Map<string, Contract>();
 
-  has(contractId: string): boolean {
-    return this.contracts.has(contractId);
-  }
+  // ==========================================
+  // CONFIGURATIONS
+  // ==========================================
 
-  get(contractId: string): Contract | null {
-    return this.contracts.get(contractId) || null;
-  }
+  CHUNK_SIZE = 5 * 1024 * 1024; // 5MB
+
+  // ==========================================
+  // METHODS
+  // ==========================================
 
   create(metadata: FileMetadata): Contract {
     const { size } = metadata;
 
     const contractId = Bun.randomUUIDv7();
-
-    const totalChunk = Math.ceil(size / CHUNK_SIZE);
-
-    const contract = {
-      id: contractId,
-      size,
-      totalChunk,
-      receivedChunks: new Set<number>(),
-    };
+    const totalChunk = Math.ceil(size / this.CHUNK_SIZE);
+    const contract = new Contract(contractId, size, totalChunk);
 
     this.contracts.set(contract.id, contract);
 
@@ -60,6 +90,10 @@ class FileUploadContractManager {
       this.contracts.delete(contractId);
     }
   }
+
+  // ==========================================
+  // PRIVATE METHODS
+  // ==========================================
 
   async #mergeChunks(contract: Contract): Promise<string | null> {
     const crane = new Crane("public");

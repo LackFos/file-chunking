@@ -26,14 +26,11 @@ export class Crane {
   #drop: (contract: Contract) => Promise<string>;
 
   async #dropToPublic(contract: Contract): Promise<string> {
-    const file = Bun.file(`.tmp/uploads/${contract.id}/merged.bin`);
-
     const uuid = Bun.randomUUIDv7();
     const destinationPath = `./public/uploads/${uuid}`;
+    await Bun.write(destinationPath, contract.file);
 
-    await Bun.write(destinationPath, file);
-
-    await rm(`.tmp/uploads/${contract.id}`, { recursive: true, force: true });
+    await contract.deleteTempFile();
 
     return destinationPath;
   }
