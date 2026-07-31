@@ -1,4 +1,5 @@
 import { appendFile } from "node:fs/promises";
+import { Crane } from "./crane";
 
 export interface FileMetadata {
   size: number;
@@ -55,21 +56,25 @@ class FileUploadContractManager {
     contract.receivedChunks.add(chunkNumber);
 
     if (contract.receivedChunks.size === contract.totalChunk) {
-      await this.mergeChunks(contract);
+      await this.#mergeChunks(contract);
       this.contracts.delete(contractId);
     }
   }
 
-  private async mergeChunks(contract: Contract) {
+  async #mergeChunks(contract: Contract): Promise<string | null> {
+    const crane = new Crane("public");
+
     for (let i = 1; i <= contract.totalChunk; i++) {
       try {
         const chunk = Bun.file(`.tmp/uploads/${contract.id}/chunk/${i}`);
         const bytes = await chunk.bytes();
-        await appendFile(`.tmp/uploads/${contract.id}.bin`, bytes);
+        await appendFile(`.tmp/uploads/${contract.id}/merged.bin`, bytes);
       } catch (error) {
         throw new Error(`Failed to merge chunk ${i}: ${error}`);
       }
     }
+
+    return await crane.liftAndDrop(contract);
   }
 }
 
