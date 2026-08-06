@@ -1,11 +1,17 @@
 import { appendFile } from "node:fs/promises";
 import { Crane } from "./crane";
+import { FileType } from "./file-type";
 import { BunFile } from "bun";
 import { rm } from "node:fs/promises";
 
 export interface FileMetadata {
   size: number;
 }
+
+type FileType = {
+  extension: string;
+  mimeType: string;
+};
 
 export class Contract {
   // ==========================================
@@ -17,6 +23,8 @@ export class Contract {
   totalChunk: number;
   receivedChunks: Set<number>;
 
+  #fileType: FileType | null;
+
   // ==========================================
   // CONSTRUCTOR
   // ==========================================
@@ -26,6 +34,8 @@ export class Contract {
     this.size = size;
     this.totalChunk = totalChunk;
     this.receivedChunks = new Set<number>();
+
+    this.#fileType = null;
   }
 
   // ==========================================
@@ -34,6 +44,18 @@ export class Contract {
 
   get file(): BunFile {
     return Bun.file(`.tmp/uploads/${this.id}/merged.bin`);
+  }
+
+  get fileType(): FileType | null {
+    return this.#fileType;
+  }
+
+  // ==========================================
+  // SETTERS
+  // ==========================================
+
+  set fileType(fileType: FileType | null) {
+    this.#fileType = fileType;
   }
 
   // ==========================================
@@ -79,6 +101,10 @@ class FileUploadContractManager {
 
     if (!contract) {
       throw new Error("Invalid contract id");
+    }
+
+    if (chunkNumber === 1) {
+      contract.fileType = FileType.fromBuffer(chunk);
     }
 
     await Bun.write(`.tmp/uploads/${contractId}/chunk/${chunkNumber}`, chunk);

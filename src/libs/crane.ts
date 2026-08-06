@@ -27,7 +27,8 @@ export class Crane {
 
   async #dropToPublic(contract: Contract): Promise<string> {
     const uuid = Bun.randomUUIDv7();
-    const destinationPath = `./public/uploads/${uuid}`;
+
+    const destinationPath = `./public/uploads/${uuid}.${contract.fileType?.extension || "bin"}`;
     await Bun.write(destinationPath, contract.file);
 
     await contract.deleteTempFile();
