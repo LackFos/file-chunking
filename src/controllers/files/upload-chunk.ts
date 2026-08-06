@@ -1,12 +1,11 @@
 import { Context, t, Static } from "elysia";
 import { ResponseHelper } from "@/libs/response-helper";
 import { FileUploadContract } from "@/libs/file-upload-contract";
-import { FileType } from "@/libs/file-type";
 
 export const UploadChunkDTO = {
   params: t.Object({
     contractId: t.String(),
-    chunkNumber: t.Number(),
+    chunkNumber: t.Number({ minimum: 1 }),
   }),
   body: t.ArrayBuffer(),
 };
