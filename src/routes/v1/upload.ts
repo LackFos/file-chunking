@@ -3,10 +3,7 @@ import {
   requestUpload,
   RequestUploadDTO,
 } from "@/controllers/files/request-upload";
-import {
-  uploadChunk,
-  UploadChunkDTO,
-} from "../../controllers/files/upload-chunk";
+import { uploadChunk, UploadChunkDTO } from "@/controllers/files/upload-chunk";
 
 export const uploadRoutes = new Elysia({ prefix: "/upload" })
   .post("/request", requestUpload, RequestUploadDTO)
