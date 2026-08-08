@@ -1,71 +1,12 @@
 import { appendFile } from "node:fs/promises";
-import { Crane } from "./crane";
-import { FileType } from "./file-type";
-import { BunFile } from "bun";
-import { rm } from "node:fs/promises";
+import { Crane } from "@/libs/crane";
+import { Contract } from "@/libs/file-upload-contract/contract";
+import { UploadContractError } from "@/libs/file-upload-contract/file-contract-error";
+import { FileType } from "@/libs/file-type";
+import { FileMetadata } from "@/libs/file-upload-contract/types/file-meta-data";
 
-export interface FileMetadata {
-  size: number;
-}
-
-type FileType = {
-  extension: string;
-  mimeType: string;
-};
-
-export class Contract {
-  // ==========================================
-  // PROPERTIES
-  // ==========================================
-
-  id: string;
-  size: number;
-  totalChunk: number;
-  receivedChunks: Set<number>;
-
-  #fileType: FileType | null;
-
-  // ==========================================
-  // CONSTRUCTOR
-  // ==========================================
-
-  constructor(id: string, size: number, totalChunk: number) {
-    this.id = id;
-    this.size = size;
-    this.totalChunk = totalChunk;
-    this.receivedChunks = new Set<number>();
-
-    this.#fileType = null;
-  }
-
-  // ==========================================
-  // GETTERS
-  // ==========================================
-
-  get file(): BunFile {
-    return Bun.file(`.tmp/uploads/${this.id}/merged.bin`);
-  }
-
-  get fileType(): FileType | null {
-    return this.#fileType;
-  }
-
-  // ==========================================
-  // SETTERS
-  // ==========================================
-
-  set fileType(fileType: FileType | null) {
-    this.#fileType = fileType;
-  }
-
-  // ==========================================
-  // METHODS
-  // ==========================================
-
-  async deleteTempFile(): Promise<void> {
-    await rm(`.tmp/uploads/${this.id}`, { recursive: true, force: true });
-  }
-}
+export { Contract } from "@/libs/file-upload-contract/contract";
+export { UploadContractError } from "@/libs/file-upload-contract/file-contract-error";
 
 class FileUploadContractManager {
   // ==========================================
@@ -100,7 +41,11 @@ class FileUploadContractManager {
     const contract = this.contracts.get(contractId);
 
     if (!contract) {
-      throw new Error("Invalid contract id");
+      throw UploadContractError.InvalidContractId;
+    }
+
+    if (contract.receivedChunks.has(chunkNumber)) {
+      throw UploadContractError.ChunkReceived;
     }
 
     if (chunkNumber === 1) {
