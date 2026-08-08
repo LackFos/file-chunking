@@ -4,6 +4,8 @@ import { Contract } from "@/libs/file-upload-contract/contract";
 import { UploadContractError } from "@/libs/file-upload-contract/file-contract-error";
 import { FileType } from "@/libs/file-type";
 import { FileMetadata } from "@/libs/file-upload-contract/types/file-meta-data";
+import { rm } from "node:fs/promises";
+import { ENOENT } from "node:constants";
 
 export { Contract } from "@/libs/file-upload-contract/contract";
 export { UploadContractError } from "@/libs/file-upload-contract/file-contract-error";
@@ -54,11 +56,27 @@ class FileUploadContractManager {
 
     await Bun.write(`.tmp/uploads/${contractId}/chunk/${chunkNumber}`, chunk);
 
-    contract.receivedChunks.add(chunkNumber);
+    contract.receivedChunks = contract.receivedChunks.add(chunkNumber);
 
     if (contract.receivedChunks.size === contract.totalChunk) {
       await this.#mergeChunks(contract);
-      this.contracts.delete(contractId);
+      await this.remove(contractId);
+    }
+  }
+
+  async remove(contractId: string) {
+    this.contracts.delete(contractId);
+
+    try {
+      await rm(`.tmp/uploads/${contractId}`, { recursive: true });
+      console.log(`Contract ${contractId} has been removed successfully`);
+    } catch (error) {
+      if (isSystemError(error) && error?.code === "ENOENT") {
+        console.log(`Contract ${contractId} has been removed successfully`);
+        return;
+      }
+
+      console.error(`Failed to remove contract ${contractId}:`, error);
     }
   }
 
@@ -81,6 +99,10 @@ class FileUploadContractManager {
 
     return await crane.liftAndDrop(contract);
   }
+}
+
+function isSystemError(error: unknown): error is { code: string } {
+  return typeof error === "object" && error !== null && "code" in error;
 }
 
 export const FileUploadContract = new FileUploadContractManager();
