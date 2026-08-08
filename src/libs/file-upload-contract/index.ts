@@ -1,0 +1,108 @@
+import { appendFile } from "node:fs/promises";
+import { Crane } from "@/libs/crane";
+import { Contract } from "@/libs/file-upload-contract/contract";
+import { UploadContractError } from "@/libs/file-upload-contract/file-contract-error";
+import { FileType } from "@/libs/file-type";
+import { FileMetadata } from "@/libs/file-upload-contract/types/file-meta-data";
+import { rm } from "node:fs/promises";
+import { ENOENT } from "node:constants";
+
+export { Contract } from "@/libs/file-upload-contract/contract";
+export { UploadContractError } from "@/libs/file-upload-contract/file-contract-error";
+
+class FileUploadContractManager {
+  // ==========================================
+  // PROPERTIES
+  // ==========================================
+
+  contracts = new Map<string, Contract>();
+
+  // ==========================================
+  // CONFIGURATIONS
+  // ==========================================
+
+  CHUNK_SIZE = 5 * 1024 * 1024; // 5MB
+
+  // ==========================================
+  // METHODS
+  // ==========================================
+
+  create(metadata: FileMetadata): Contract {
+    const { size } = metadata;
+
+    const contractId = Bun.randomUUIDv7();
+    const totalChunk = Math.ceil(size / this.CHUNK_SIZE);
+    const contract = new Contract(contractId, size, totalChunk);
+
+    this.contracts.set(contract.id, contract);
+
+    return contract;
+  }
+
+  async receive(chunk: ArrayBuffer, contractId: string, chunkNumber: number) {
+    const contract = this.contracts.get(contractId);
+
+    if (!contract) {
+      throw UploadContractError.InvalidContractId;
+    }
+
+    if (contract.receivedChunks.has(chunkNumber)) {
+      throw UploadContractError.ChunkReceived;
+    }
+
+    if (chunkNumber === 1) {
+      contract.fileType = FileType.fromBuffer(chunk);
+    }
+
+    await Bun.write(`.tmp/uploads/${contractId}/chunk/${chunkNumber}`, chunk);
+
+    contract.receivedChunks = contract.receivedChunks.add(chunkNumber);
+
+    if (contract.receivedChunks.size === contract.totalChunk) {
+      await this.#mergeChunks(contract);
+      await this.remove(contractId);
+    }
+  }
+
+  async remove(contractId: string) {
+    this.contracts.delete(contractId);
+
+    try {
+      await rm(`.tmp/uploads/${contractId}`, { recursive: true });
+      console.log(`Contract ${contractId} has been removed successfully`);
+    } catch (error) {
+      if (isSystemError(error) && error?.code === "ENOENT") {
+        console.log(`Contract ${contractId} has been removed successfully`);
+        return;
+      }
+
+      console.error(`Failed to remove contract ${contractId}:`, error);
+    }
+  }
+
+  // ==========================================
+  // PRIVATE METHODS
+  // ==========================================
+
+  async #mergeChunks(contract: Contract): Promise<string | null> {
+    const crane = new Crane("public");
+
+    for (let i = 1; i <= contract.totalChunk; i++) {
+      try {
+        const chunk = Bun.file(`.tmp/uploads/${contract.id}/chunk/${i}`);
+        const bytes = await chunk.bytes();
+        await appendFile(`.tmp/uploads/${contract.id}/merged.bin`, bytes);
+      } catch (error) {
+        throw new Error(`Failed to merge chunk ${i}: ${error}`);
+      }
+    }
+
+    return await crane.liftAndDrop(contract);
+  }
+}
+
+function isSystemError(error: unknown): error is { code: string } {
+  return typeof error === "object" && error !== null && "code" in error;
+}
+
+export const FileUploadContract = new FileUploadContractManager();
