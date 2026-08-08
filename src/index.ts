@@ -1,5 +1,5 @@
 import { Elysia } from "elysia";
-import { v1Routes } from "./routes/v1";
+import { v1Routes } from "@/routes/v1";
 import openapi from "@elysia/openapi";
 
 const PORT = process.env.PORT || 3000;

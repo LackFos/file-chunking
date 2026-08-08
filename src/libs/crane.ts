@@ -1,5 +1,5 @@
 import { rm } from "node:fs/promises";
-import { Contract } from "./file-upload-contract";
+import { Contract } from "@/libs/file-upload-contract";
 
 type CraneDriver = "public" | "s3";
 
