@@ -12,6 +12,8 @@ A zero-dependency experimental project built to deeply understand of file chunki
 
 ---
 
-## # Notes: What I Learned
+## Notes: What I Learned
 
-- To be filled
+- File magic bytes
+- File chunking mechanicsm
+- Elysia.js
