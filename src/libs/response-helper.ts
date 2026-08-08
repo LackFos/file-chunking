@@ -7,6 +7,8 @@ const StatusCode = {
   Created: 201,
   NoContent: 204,
   NotFound: 404,
+  Conflict: 409,
+  InternalServerError: 500,
 };
 
 export const ResponseHelper = {
@@ -41,6 +43,31 @@ export const ResponseHelper = {
     return {
       success: false,
       message,
+    };
+  },
+
+  Conflict: (set: SetContext, message: string) => {
+    set.status = StatusCode.Conflict;
+
+    return {
+      success: false,
+      message,
+    };
+  },
+
+  InternalServerError: (set: SetContext, error: unknown) => {
+    set.status = StatusCode.InternalServerError;
+
+    const isError = error instanceof Error;
+    const isDebugMode = process.env.APP_DEBUG === "true";
+
+    return {
+      success: false,
+      message: "Internal Server Error",
+      error:
+        isDebugMode && isError
+          ? error.stack?.split("\n").map((line) => line.trim())
+          : undefined,
     };
   },
 };

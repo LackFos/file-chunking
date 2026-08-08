@@ -1,6 +1,9 @@
 import { Context, t, Static } from "elysia";
 import { ResponseHelper } from "@/libs/response-helper";
-import { FileUploadContract } from "@/libs/file-upload-contract";
+import {
+  FileUploadContract,
+  UploadContractError,
+} from "@/libs/file-upload-contract";
 
 export const UploadChunkDTO = {
   params: t.Object({
@@ -16,10 +19,18 @@ export async function uploadChunk(
     body: ArrayBuffer;
   }>,
 ) {
-  const { contractId, chunkNumber } = context.params;
-  const chunk = context.body;
+  try {
+    const { contractId, chunkNumber } = context.params;
+    const chunk = context.body;
 
-  FileUploadContract.receive(chunk, contractId, chunkNumber);
+    await FileUploadContract.receive(chunk, contractId, chunkNumber);
 
-  return ResponseHelper.NoContent(context.set);
+    return ResponseHelper.NoContent(context.set);
+  } catch (error) {
+    if (error instanceof UploadContractError) {
+      return error.toResponse(context.set);
+    }
+
+    return ResponseHelper.InternalServerError(context.set, error);
+  }
 }

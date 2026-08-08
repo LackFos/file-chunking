@@ -14,11 +14,15 @@ export const RequestUploadDTO = {
 export const requestUpload = async (
   context: Context<{ body: Static<typeof RequestUploadDTO.body> }>,
 ) => {
-  const metadata = {
-    size: context.body.size,
-  };
+  try {
+    const metadata = {
+      size: context.body.size,
+    };
 
-  const contract = FileUploadContract.create(metadata);
+    const contract = FileUploadContract.create(metadata);
 
-  return ResponseHelper.Ok(context.set, "Contract created", contract);
+    return ResponseHelper.Ok(context.set, "Contract created", contract);
+  } catch (error) {
+    return ResponseHelper.InternalServerError(context.set, error);
+  }
 };
